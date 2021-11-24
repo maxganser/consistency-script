@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # The MIT License (MIT)
-# Copyright (c) 2021 Thomas Huetter.
+# Copyright (c) 2021 Thomas Huetter & Maximilian Ganser.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,8 @@
 # SOFTWARE.
 
 '''
-Program: Identify consensus and non-consensus molecular characters between 
-multiple alignment files.
+Program: Identify consensus and non-consensus signature characters between 
+a reference alignment and alternative alignments.
 '''
 
 import argparse
@@ -36,8 +36,8 @@ import DeSignate.webapp.designate as DS
 def create_position_alignment(alignment):
     """
         Given an alignment with multiple sequences, assign ascending numbers 
-        representing their positions. Positions with gaps are skipped and 
-        assigned 0.
+        to the nucleotides of each sequence representing their positions. 
+        Positions with gaps are skipped and assigned 0.
     """
 
     position_alignment = []
@@ -59,8 +59,8 @@ def create_position_alignment(alignment):
 def get_sig_chars(alignment, query_group, reference_group, k, gaps):
     """
         Calls DeSignate to detect signature characters and filters for binary 
-        and asymmetric characters. Returns a list of the according positions 
-        in the alignment.
+        and asymmetric signatures. Returns a list of the corresponding 
+        alignment positions.
     """
 
     sig_chars = [r[0] for r in DS.signature_character_detection(alignment, 
@@ -99,11 +99,11 @@ def main():
     parser.add_argument("--alignment_format", type=str, default="fasta",
         help="Specify the alignment file format. Default is set to 'fasta'.")
     parser.add_argument("--query_group", type=str, help="<Required> \
-        Path to a csv file that contains the species of the query group.", 
-        required=True)
+        Path to a csv file that contains the sequence labels of the query \
+        group.", required=True)
     parser.add_argument("--reference_group", type=str, help="<Required> \
-        Path to a csv file that contains the species of the reference group.", 
-        required=True)
+        Path to a csv file that contains the sequence labels of the reference \
+        group.", required=True)
     parser.add_argument("--k_window", type=int, default=1,
         help="Combine two noisy positions in order to find more asymmetric \
         pairs resulting in a higher number of unique characteristics. The \
@@ -141,8 +141,8 @@ def main():
         reader = csv.reader(f, skipinitialspace=True)
         reference_group = list(reader)[0]
 
-    # Parse the alignments, translate to position alignments, and analyze 
-    # their signature characters using DeSignate.
+    # Parse the alignments, translate to nucleotide position alignments, and  
+    # analyze their signature characters using DeSignate.
     for alignment in args.alignments:
         # Parse input alignments and keep all sequences that are either part 
         # of the query or the reference group.
