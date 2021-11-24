@@ -29,8 +29,9 @@ multiple alignment files.
 import argparse
 import csv
 import os
-import numpy as np
 from Bio import AlignIO
+from Bio.Align import MultipleSeqAlignment
+from Bio import SeqIO
 import DeSignate.webapp.designate as DS
 
 def create_position_alignment(alignment):
@@ -56,19 +57,39 @@ def create_position_alignment(alignment):
 
     return position_alignment
 
-def get_signature_characters(alignment, query_group, reference_group, k):
+def get_sig_chars(alignment, query_group, reference_group, k, gaps):
     """
         Calls DeSignate to detect signature characters and filters for binary 
         and asymmetric characters. Returns a list of the according positions 
         in the alignment.
     """
 
-    signature_characters = [r[0] for r in DS.signature_character_detection(
-        alignment, None, query_group, reference_group, k, None, False, True, 
-        False) if r[4] == 'binary' or r[4] == 'asymmetric']
+    sig_chars = [r[0] for r in DS.signature_character_detection(alignment, 
+        None, query_group, reference_group, k, "signature_characters.csv", 
+        True, True, gaps) if r[4] == 'binary' or r[4] == 'asymmetric']
 
-    return signature_characters
+    return sig_chars
 
+
+def column(matrix, col):
+    """
+        Returns a given column of a two-dimensional list.
+    """
+
+    return [row[col] for row in matrix]
+
+def print_matrix(matrix):
+    """
+        Prints a given 2D list (matrix) nicely.
+    """
+
+    s = [[str(e) for e in row] for row in matrix]
+    lens = [max(map(len, col)) for col in zip(*s)]
+    fmt = '\t'.join('{{:{}}}'.format(x) for x in lens)
+    table = [fmt.format(*row) for row in s]
+    print('\n'.join(table))
+
+    return
 
 def main():
     # Parse input arguments.
@@ -89,123 +110,119 @@ def main():
         pairs resulting in a higher number of unique characteristics. The \
         required parameter k is used for the so-called k-window. Only noisy \
         positions in a range of k are considered to be combined for analysis.")
+    parser.add_argument("--consider_gaps", default=True, action="store_true", 
+        help="Classify signature characters with gap state.")
     args = parser.parse_args()
 
     # List of all input alignments.
     alignments = []
     # List of all input alignments with position numbers instead of nucleotides.
-    position_alignments = []
+    numbered_alignments = []
     # List of all signature characters detected by DeSignate for each alignment.
-    signature_characters = []
+    sig_chars = []
+    # Stores the number of each column that belongs to a signature character.
+    numbered_sig_cols = []
+    # Dictionary from signature character positions to numbered column arrays.
+    sig_to_cols = []
+    # Dictionary from numbered column arrays to signature character positions.
+    cols_to_sig = []
+    # Stores consensus and non-consensus signatures.
+    consensus_signatures = []
+    non_consensus_signatures = []
+
     # List of the species in query and reference groups. Read given CSV files 
     # as input.
     query_group = []
     with open(args.query_group, newline='') as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, skipinitialspace=True)
         query_group = list(reader)[0]
 
     reference_group = []
     with open(args.reference_group, newline='') as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, skipinitialspace=True)
         reference_group = list(reader)[0]
 
     # Parse the alignments, translate to position alignments, and analyze 
     # their signature characters using DeSignate.
     for alignment in args.alignments:
-        alignments.append(AlignIO.read(alignment, args.alignment_format))
-        position_alignments.append(
-            create_position_alignment(alignments[len(alignments)-1]))
+        # Parse input alignments and keep all sequences that are either part 
+        # of the query or the reference group.
+        sequences = []
+        for seq in SeqIO.parse(alignment, args.alignment_format):
+            if seq.name in query_group or seq.name in reference_group:
+                sequences.append(seq)
+        alignments.append(MultipleSeqAlignment(sequences))
+
+        # Build an alignment that stores ascending numbers rather than 
+        # characters.
+        numbered_alignments.append(
+            create_position_alignment(alignments[-1]))
+
         # Perform DeSignate analysis.
-        signature_characters.append(get_signature_characters(
-            alignments[len(alignments)-1], query_group, reference_group, 
-            args.k_window))
+        sig_chars.append(get_sig_chars(
+            alignments[-1], query_group, reference_group, 
+            args.k_window, args.consider_gaps))
+
+        # Extract all numbers at signature character columns. Tuples are needed 
+        # to hash them later on.
+        numbered_sig_cols.append([])
+        for pos in sig_chars[-1]:
+            numbered_sig_cols[-1].append(
+                    tuple(sorted(column(numbered_alignments[-1], pos-1))))
+
+        # Link signature character positions to numbered columns.
+        sig_to_cols.append(dict(zip(sig_chars[-1], numbered_sig_cols[-1])))
+        # Link numbered columns to signature character positions.
+        cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
 
 
-    ############################################################################
-    ####### TODO BELOW #########################################################
-    ############################################################################
+    # Identify consensus and non-consensus signatures. A signature is 
+    # consensus if they have identical column numbers to the reference 
+    # alignment (i.e., index 0).
+    for k, v in sig_to_cols[0].items():
+        # Check whether a reference alignment signature occurs in all other 
+        # alignments.
+        consensus = True
+        # Start at second alignment since the reference alignment is not 
+        # considered.
+        for cst in cols_to_sig[1:]:
+            if v not in cst:
+                consensus = False
+        if consensus is True:
+            cons_sig =[k]
+            # Start at second alignment since the reference alignment is not 
+            # considered.
+            for cst in cols_to_sig[1:]:
+                cons_sig.append(cst[v])
+            consensus_signatures.append(cons_sig)
+        else:
+            non_consensus_signatures.append([k])
 
-    # Turn alignment_vector into array
-    # Columns can be selected in the arrays
-    align_array_A1 = np.array(position_alignments[0], np.dtype(int))
-    # print("Array shape %i by %i" % align_array_A1.shape)
 
-    align_array_A2 = np.array(position_alignments[1], np.dtype(int))
-    #print("Array shape %i by %i" % align_array_muscle.shape)
+    # Save results.
+    # Build header for consensus matrix.
+    consensus_matrix_header = []
+    for i in range(len(cols_to_sig)):
+        consensus_matrix_header.append("Alignment " + str(i+1))
 
-    align_array_A3 = np.array(position_alignments[2], np.dtype(int))
-    #print("Array shape %i by %i" % align_array_tcoffee.shape)
+    writer = csv.writer(open("consensus.csv", "w"))
+    writer.writerow(consensus_matrix_header)
+    writer.writerows(consensus_signatures)
 
-    # Selected columns get new indices starting from 0 so pos-1 is needed
-    # A1
-    print('\nReference alignment (A1)')
-    # Select positions in array and write to new list of tuples (hashable)
-    sig_pos_A1 = []
-    for pos in signature_characters[0]:
-        sig_pos_A1.append(tuple(align_array_A1[:, (int(pos)-1)]))
-    print('Number of signatures selected:', len(sig_pos_A1))
+    writer = csv.writer(open("non-consensus.csv", "w"))
+    writer.writerow(["Reference Alignment"])
+    writer.writerows(non_consensus_signatures)
 
-    # A2
-    print('\nAlternative alignment (A2)')
-    # Select positions in array and write to new list of tuples (hashable)   
-    sig_pos_A2 = []
-    for pos in signature_characters[1]:
-        sig_pos_A2.append(tuple(align_array_A2[:, (int(pos)-1)]))
-    print('Number of signatures selected:', len(sig_pos_A2))
-
-    # A3
-    print('\nAlternative alignment (A3)')
-    # Select positions in array and write to new list of tuples (hashable)   
-    sig_pos_A3 = []
-    for pos in signature_characters[2]:
-        sig_pos_A3.append(tuple(align_array_A3[:, (int(pos)-1)]))
-    print('Number of signatures selected:', len(sig_pos_A3))
-
-    # Create dictionaries to link signature positions with nucleotide positions and states
-    sig_nucpos_A1 = dict(zip(signature_characters[0], sig_pos_A1))
-    sig_nucpos_A2 = dict(zip(signature_characters[1], sig_pos_A2))
-    sig_nucpos_A3 = dict(zip(signature_characters[2], sig_pos_A3))
-
-    # Convert dictionaries to also get the corresponding signature positions 
-    # from each alignment
-    A2_dict = dict((y,x) for x,y in sig_nucpos_A2.items())
-    A3_dict = dict((y,x) for x,y in sig_nucpos_A3.items())
-
-    # Get consensus and non-consensus signatures, save to list, and print
-    # Which consensus signature positions correspond to each other in each alignment? 
-    consensus_signatures = []
-    for k in sig_nucpos_A1:
-        if sig_nucpos_A1[k] in A2_dict and sig_nucpos_A1[k] in A3_dict:
-            consensus_signatures.append((int(k), 
-                                              int(A2_dict[sig_nucpos_A1[k]]), 
-                                              int(A3_dict[sig_nucpos_A1[k]])))
-            
-    non_consensus_signatures = []
-    for k in sig_nucpos_A1:
-        if sig_nucpos_A1[k] not in A2_dict or sig_nucpos_A1[k] not in A3_dict:
-            non_consensus_signatures.append((int(k)))
-
-    # Print results
-    print('\nCONSENSUS SIGNATURE CHARACTERS')
-    print('Quantity:',
-          len(consensus_signatures), 
-          '\nPositions:')
-    print("Alignment 1  Alignment 2  Alignment 3")
-    for pos1,pos2,pos3 in consensus_signatures:
-        print("{:<13}{:<13}{:<13}".format(pos1,pos2,pos3))
-    print ('\nNON-CONSENSUS SIGNATURE CHARACTERS',
-           '\nQuantity:',
-           len(non_consensus_signatures), 
-          '\nPositions in reference alignment (A1):')
-    for pos1 in non_consensus_signatures:
-        print(pos1)
-
-    # print(query_group)
-    # print(reference_group)
-    # print(alignments)
-    # print(position_alignments[0][0])
-    # print(signature_characters[0])
-
+    print('CONSENSUS SIGNATURE CHARACTERS')
+    print('Quantity:' + str(len(consensus_signatures)))
+    print('Positions:')
+    print_matrix(consensus_signatures)
+    print()
+    print('NON-CONSENSUS SIGNATURE CHARACTERS')
+    print('Quantity:' + str(len(non_consensus_signatures)))
+    print('Positions in the reference alignment:')
+    for pos in non_consensus_signatures:
+        print(pos[0])
 
 if __name__ == "__main__":
     main()
