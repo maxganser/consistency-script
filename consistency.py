@@ -29,7 +29,6 @@ multiple alignment files.
 import argparse
 import csv
 import os
-from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 from Bio import SeqIO
 import DeSignate.webapp.designate as DS
