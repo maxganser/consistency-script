@@ -178,8 +178,8 @@ def main():
         get_sig_chars(alignments[0], query_group, reference_group,
         args.k_window, args.consider_gaps)
         
-    # Identify consensus and non-consensus signatures. A signature is 
-    # consensus if they have identical column numbers to the reference 
+    # Identify consensus and non-consensus signature characters. A consensus 
+    # signature character has identical column numbers to the reference 
     # alignment (i.e., index 0).
     for k, v in sig_to_cols[0].items():
         # Check whether a reference alignment signature occurs in all other 
@@ -191,7 +191,7 @@ def main():
             if v not in cst:
                 consensus = False
         if consensus is True:
-            cons_sig =[k]
+            cons_sig = [k]
             # Start at second alignment since the reference alignment is not 
             # considered.
             for cst in cols_to_sig[1:]:
