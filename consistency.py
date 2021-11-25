@@ -174,7 +174,7 @@ def main():
         # Link numbered columns to signature character positions.
         cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
 
-	    # Get signature characters of reference alignment for csv file output
+	# Get signature characters of reference alignment for csv file output
         get_sig_chars(alignments[0], query_group, reference_group,
         args.k_window, args.consider_gaps)
         
