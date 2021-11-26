@@ -32,6 +32,7 @@ import os
 from Bio.Align import MultipleSeqAlignment
 from Bio import SeqIO
 import DeSignate.webapp.designate as DS
+import pandas as pd
 
 def create_position_alignment(alignment):
     """
@@ -64,7 +65,7 @@ def get_sig_chars(alignment, query_group, reference_group, k, gaps):
     """
 
     sig_chars = [r[0] for r in DS.signature_character_detection(alignment, 
-        None, query_group, reference_group, k, "signature_characters.csv", 
+        None, query_group, reference_group, k, "signature-characters.csv", 
         True, True, gaps) if r[4] == 'binary' or r[4] == 'asymmetric']
 
     return sig_chars
@@ -174,9 +175,14 @@ def main():
         # Link numbered columns to signature character positions.
         cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
 
-	# Get signature characters of reference alignment for csv file output
-        get_sig_chars(alignments[0], query_group, reference_group,
-        args.k_window, args.consider_gaps)
+    # Get signature characters of reference alignment and save as csv file
+    designate_results = [r[0] for r in DS.signature_character_detection(
+        alignments[0], None, query_group, reference_group, 1,
+        "signature-characters.csv", True, False, True)]
+
+    # Calculate Shannon-entropy values of reference alignment
+    shannon_entropy = [r[0] for r in DS.shannon_entropy_analysis(alignments[0],
+        None, None, "shannon-entropy.csv")]
         
     # Identify consensus and non-consensus signature characters. A consensus 
     # signature character has identical column numbers to the reference 
@@ -207,14 +213,25 @@ def main():
     for i in range(len(cols_to_sig)):
         consensus_matrix_header.append("Alignment " + str(i+1))
 
-    writer = csv.writer(open("consensus.csv", "w"))
+    writer = csv.writer(open("consensus-positions.csv", "w"))
     writer.writerow(consensus_matrix_header)
     writer.writerows(consensus_signatures)
 
-    writer = csv.writer(open("non-consensus.csv", "w"))
+    writer = csv.writer(open("non-consensus-positions.csv", "w"))
     writer.writerow(["Reference Alignment"])
     writer.writerows(non_consensus_signatures)
 
+    # Build final results file
+    a = pd.read_csv("signature-characters.csv")
+    b = pd.read_csv("shannon-entropy.csv")
+    c = pd.read_csv("consensus-positions.csv")
+    merged_a = a.merge(b, on='position')
+    merged_a.to_csv("designate-results.csv", index=False)
+    d = pd.read_csv("designate-results.csv")
+    merged_c = c.merge(d, left_on='Alignment 1', right_on='position')
+    merged_c.to_csv("consensus-sigchars.csv", index=False)
+    
+    # Print results
     print('CONSENSUS SIGNATURE CHARACTERS')
     print('Quantity:' + str(len(consensus_signatures)))
     print('Positions:')
