@@ -27,12 +27,20 @@ git clone https://github.com/DatabaseGroup/DeSignate
    ```
 ### Output files
 Work in progress:
-- *consensus-sigchars.csv*: Alignment positions of consensus signature characters + DeSignate results (character states, signature type, entropy values)  
-- *non-consensus-positions.csv*: Reference alignment positions of non-consensus signature characters
-- *designate-results.csv*: Complete DeSignate results of reference alignment for the selected query and reference groups 
+- *consensus-sigchars.csv* : Alignment positions of consensus signature characters + DeSignate results (character states, signature type, entropy values)  
+- *non-consensus-positions.csv* : Reference alignment positions of non-consensus signature characters
+- *designate-results.csv* : Complete DeSignate results of reference alignment for the selected query and reference groups 
 
 ### Commands
 To execute the script use the following command:
 ```
 python consistency.py --alignments path/alignment_01.fasta path/alignment_02.fasta path/alignment_03.fasta --query_group path/query_group.txt --reference_group path/reference_group.txt
+```
+```
+List of commands:
+--alignments : Paths to alignment files, the first file represents the reference alignment
+--query_group : Path to query group file
+--reference_group: Path to reference group file
+--k_window : Two position analysis, default = 1 for one position analysis
+--consider_gaps : Include gaps as a character state, default = True
 ```
