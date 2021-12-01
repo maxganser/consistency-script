@@ -1,6 +1,6 @@
 # Consistency script 
 ## Tool description
-In a first step, the tool utilizes [DeSignate](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-020-3498-6) to detect signature characters for a selected query group in a reference alignment and alternative alignments comprising identical sequences. Secondly, consensus signature characters congruently detected in all alignments are identified.
+In a first step, the tool utilizes [DeSignate](https://designate.dbresearch.uni-salzburg.at/home/) to detect signature characters for a selected query group in a reference alignment and alternative alignments comprising identical sequences. Secondly, consensus signature characters congruently detected in all alignments are identified.
 
 For more details and an example application, please read our manuscript (*submitted*) @ [MPE](https://www.journals.elsevier.com/molecular-phylogenetics-and-evolution) 
 
