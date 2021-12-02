@@ -174,7 +174,40 @@ def main():
         sig_to_cols.append(dict(zip(sig_chars[-1], numbered_sig_cols[-1])))
         # Link numbered columns to signature character positions.
         cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
+    
+    ############ WORK IN PROGRESS ############
+    # Save sequence labels in each alignment to list.
+    sequence_ids = []
+    for alignment in alignments:
+        alignment_labels = []
+        for record in alignment:
+            alignment_labels.append(record.id)
+        sequence_ids.append(alignment_labels)
 
+    # Check if sequence labels from the query and reference group files match
+    # the sequence labels in the alignments.	
+    missing_ids = []
+    for i in query_group:
+        for l in sequence_ids:	
+            count_query = l.count(i)
+            if count_query == 1:
+                continue
+            else:
+                missing_ids.append(i)
+    for i in reference_group:
+        for l in sequence_ids:	
+            count_reference = l.count(i)
+            if count_reference == 1:
+                continue
+            else:
+                missing_ids.append(i)
+
+    # If missing labels are found, the script stops.
+    if missing_ids:	
+        print('ERROR: The following labels do not match:', missing_ids)
+        exit()
+    ###########################################
+    
     # Get signature characters of reference alignment and save as csv file
     designate_results = [r[0] for r in DS.signature_character_detection(
         alignments[0], None, query_group, reference_group, 1,
