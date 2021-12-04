@@ -57,7 +57,7 @@ def create_position_alignment(alignment):
 
     return position_alignment
 
-def get_sig_chars(alignment, query_group, reference_group, k, gaps):
+def get_sig_chars(alignment, query_group, reference_group, k, gaps, save=None):
     """
         Calls DeSignate to detect signature characters and filters for binary 
         and asymmetric signatures. Returns a list of the corresponding 
@@ -65,8 +65,8 @@ def get_sig_chars(alignment, query_group, reference_group, k, gaps):
     """
 
     sig_chars = [r[0] for r in DS.signature_character_detection(alignment, 
-        None, query_group, reference_group, k, "signature-characters.csv", 
-        True, True, gaps) if r[4] == 'binary' or r[4] == 'asymmetric']
+        None, query_group, reference_group, k, save, True, True, gaps) if 
+        r[4] == 'binary' or r[4] == 'asymmetric']
 
     return sig_chars
 
@@ -130,17 +130,19 @@ def main():
     consensus_signatures = []
     non_consensus_signatures = []
 
-    # List of the species in query and reference groups. Read given CSV files 
+    # Set of the species in query and reference groups. Read given CSV files 
     # as input.
-    query_group = []
+    query_group = {}
     with open(args.query_group, newline='') as f:
         reader = csv.reader(f, skipinitialspace=True)
-        query_group = list(reader)[0]
+        query_group = set(list(reader)[0])
 
-    reference_group = []
+    reference_group = {}
     with open(args.reference_group, newline='') as f:
         reader = csv.reader(f, skipinitialspace=True)
-        reference_group = list(reader)[0]
+        reference_group = set(list(reader)[0])
+    # Set of all considered species.
+    all_group = query_group.union(reference_group)
 
     # Parse the alignments, translate to nucleotide position alignments, and  
     # analyze their signature characters using DeSignate.
@@ -148,10 +150,19 @@ def main():
         # Parse input alignments and keep all sequences that are either part 
         # of the query or the reference group.
         sequences = []
+        sequence_names = []
         for seq in SeqIO.parse(alignment, args.alignment_format):
             if seq.name in query_group or seq.name in reference_group:
                 sequences.append(seq)
+                sequence_names.append(seq.name)
         alignments.append(MultipleSeqAlignment(sequences))
+        
+        # Terminate if a selected species is not present in an alignment.
+        if len(all_group - set(sequence_names)) > 0:
+            print('ERROR: Alignment "' + str(alignment) + 
+                '" does not include the following labels: ' + 
+                str(all_group - set(sequence_names)) + '.')
+            exit()
 
         # Build an alignment that stores ascending numbers rather than 
         # characters.
@@ -175,48 +186,6 @@ def main():
         # Link numbered columns to signature character positions.
         cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
     
-    ############ WORK IN PROGRESS ############
-    # Save sequence labels in each alignment to list.
-    sequence_ids = []
-    for alignment in alignments:
-        alignment_labels = []
-        for record in alignment:
-            alignment_labels.append(record.id)
-        sequence_ids.append(alignment_labels)
-
-    # Check if sequence labels from the query and reference group files match
-    # the sequence labels in the alignments.	
-    missing_ids = []
-    for i in query_group:
-        for l in sequence_ids:	
-            count_query = l.count(i)
-            if count_query == 1:
-                continue
-            else:
-                missing_ids.append(i)
-    for i in reference_group:
-        for l in sequence_ids:	
-            count_reference = l.count(i)
-            if count_reference == 1:
-                continue
-            else:
-                missing_ids.append(i)
-
-    # If missing labels are found, the script stops.
-    if missing_ids:	
-        print('ERROR: The following labels do not match:', missing_ids)
-        exit()
-    ###########################################
-    
-    # Get signature characters of reference alignment and save as csv file
-    designate_results = [r[0] for r in DS.signature_character_detection(
-        alignments[0], None, query_group, reference_group, 1,
-        "signature-characters.csv", True, False, True)]
-
-    # Calculate Shannon-entropy values of reference alignment
-    shannon_entropy = [r[0] for r in DS.shannon_entropy_analysis(alignments[0],
-        None, None, "shannon-entropy.csv")]
-        
     # Identify consensus and non-consensus signature characters. A consensus 
     # signature character has identical column numbers to the reference 
     # alignment (i.e., index 0).
@@ -239,30 +208,35 @@ def main():
         else:
             non_consensus_signatures.append([k])
 
-
     # Save results.
     # Build header for consensus matrix.
     consensus_matrix_header = []
     for i in range(len(cols_to_sig)):
         consensus_matrix_header.append("Alignment " + str(i+1))
+    # Build header for designate.
+    designate_header = ["position", "disriminative power", "query rank", 
+        "reference_rank", "index"]
+    # Build header for shannon entropy.
+    shannon_entropy_header = ["position", "shannon_entropy", "average"]
+    # Get signature characters of reference alignment and save as csv file.
+    designate_results = DS.signature_character_detection(alignments[0], None, 
+        query_group, reference_group, 1, None, True, 
+        False, True)
+    # Calculate Shannon-entropy values of reference alignment.
+    shannon_entropy = DS.shannon_entropy_analysis(alignments[0], None, None, 
+        None)
 
-    writer = csv.writer(open("consensus-positions.csv", "w"))
-    writer.writerow(consensus_matrix_header)
-    writer.writerows(consensus_signatures)
-
-    writer = csv.writer(open("non-consensus-positions.csv", "w"))
-    writer.writerow(["Reference Alignment"])
-    writer.writerows(non_consensus_signatures)
-
-    # Build final results file
-    a = pd.read_csv("signature-characters.csv")
-    b = pd.read_csv("shannon-entropy.csv")
-    c = pd.read_csv("consensus-positions.csv")
-    merged_a = a.merge(b, on='position')
-    merged_a.to_csv("designate-results.csv", index=False)
-    d = pd.read_csv("designate-results.csv")
-    merged_c = c.merge(d, left_on='Alignment 1', right_on='position')
-    merged_c.to_csv("consensus-sigchars.csv", index=False)
+    # Merge and store the DeSignate and entropy results.
+    a = pd.DataFrame(designate_results, columns = designate_header)
+    b = pd.DataFrame(shannon_entropy, columns = shannon_entropy_header)
+    designate_file = a.merge(b, on='position')
+    designate_file.to_csv("designate-results.csv", index=False)
+    # Add the DeSignate and entropy results to the consensus positions and 
+    # store the results.
+    c = pd.DataFrame(consensus_signatures, columns = consensus_matrix_header)
+    consensus_file = c.merge(designate_file, left_on='Alignment 1', 
+        right_on='position')
+    consensus_file.to_csv("consensus-sigchars.csv", index=False)
     
     # Print results
     print('CONSENSUS SIGNATURE CHARACTERS')
