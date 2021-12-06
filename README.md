@@ -29,7 +29,6 @@ git clone https://github.com/DatabaseGroup/DeSignate
    Otherwhise, the program terminates with an error message stating the missing/wrong sequence labels.
 
 ### Output files
-Work in progress:
 - **consensus-sigchars.csv** : Alignment positions of consensus signature characters + DeSignate results (character states, signature type, entropy values)  
 - **non-consensus-positions.csv** : Reference alignment positions of non-consensus signature characters
 - **designate-results.csv** : Complete DeSignate results of reference alignment for the selected query and reference groups 
