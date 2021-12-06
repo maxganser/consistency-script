@@ -11,7 +11,7 @@ This script requires DeSignate ([Hütter et al. 2020](https://bmcbioinformatics.
 git clone https://github.com/DatabaseGroup/DeSignate
 ```
 ### Input files
-1. Alignment files in *fasta* format (**PLEASE NOTE** that sequence labels must be identical in all files. Otherwhise, the script might currently not detect potential consensus signature characters even if they are present)
+1. Alignment files in *fasta* format
    - Example:
    ```
    >Sequence-1-label
@@ -20,11 +20,14 @@ git clone https://github.com/DatabaseGroup/DeSignate
    --TGGTACTGACAGTGT--
    ...
    ```
-2. Two separate files with comma separated labels of sequences comprising the query and reference group (e.g., in *txt* or *csv* format)
+2. Two separate files with comma separated sequence labels comprising the query and reference group (e.g., in *txt* or *csv* format)
    - Example:
    ```
    Sequence-1-label, Sequence-2-label, ...
    ```
+   **PLEASE NOTE:** Sequence labels must be identical in the alignments and also exactly match those in the query and reference group files.
+   Otherwhise, the program terminates with an error message stating the missing/wrong sequence labels.
+
 ### Output files
 Work in progress:
 - **consensus-sigchars.csv** : Alignment positions of consensus signature characters + DeSignate results (character states, signature type, entropy values)  
