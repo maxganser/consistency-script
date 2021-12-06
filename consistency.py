@@ -129,6 +129,8 @@ def main():
     # Stores consensus and non-consensus signatures.
     consensus_signatures = []
     non_consensus_signatures = []
+    # Stores missing sequence labels
+    missing_names = []
 
     # Set of the species in query and reference groups. Read given CSV files 
     # as input.
@@ -157,12 +159,12 @@ def main():
                 sequence_names.append(seq.name)
         alignments.append(MultipleSeqAlignment(sequences))
         
-        # Terminate if a selected species is not present in an alignment.
+        # Store and report missing sequence names.
         if len(all_group - set(sequence_names)) > 0:
             print('ERROR: Alignment "' + str(alignment) + 
                 '" does not include the following labels: ' + 
                 str(all_group - set(sequence_names)) + '.')
-            exit()
+            missing_names.append(str(all_group - set(sequence_names)))            
 
         # Build an alignment that stores ascending numbers rather than 
         # characters.
@@ -185,6 +187,10 @@ def main():
         sig_to_cols.append(dict(zip(sig_chars[-1], numbered_sig_cols[-1])))
         # Link numbered columns to signature character positions.
         cols_to_sig.append(dict(zip(numbered_sig_cols[-1], sig_chars[-1])))
+    
+    # Terminate if sequence names are missing in any alignment		
+    if missing_names:
+        exit()
     
     # Identify consensus and non-consensus signature characters. A consensus 
     # signature character has identical column numbers to the reference 
@@ -214,8 +220,8 @@ def main():
     for i in range(len(cols_to_sig)):
         consensus_matrix_header.append("Alignment " + str(i+1))
     # Build header for designate.
-    designate_header = ["position", "disriminative power", "query rank", 
-        "reference_rank", "index"]
+    designate_header = ["position", "discriminative power", "query rank", 
+        "reference_rank", "type"]
     # Build header for shannon entropy.
     shannon_entropy_header = ["position", "shannon_entropy", "average"]
     # Get signature characters of reference alignment and save as csv file.
@@ -225,7 +231,11 @@ def main():
     # Calculate Shannon-entropy values of reference alignment.
     shannon_entropy = DS.shannon_entropy_analysis(alignments[0], None, None, 
         None)
-
+    # Non-consensus signature character positions in reference alignment
+    writer = csv.writer(open("non-consensus-positions.csv", "w"))
+    writer.writerow(["Reference Alignment"])
+    writer.writerows(non_consensus_signatures)
+    
     # Merge and store the DeSignate and entropy results.
     a = pd.DataFrame(designate_results, columns = designate_header)
     b = pd.DataFrame(shannon_entropy, columns = shannon_entropy_header)
