@@ -2,7 +2,7 @@
 ## Tool description
 In a first step, the tool utilizes [DeSignate](https://designate.dbresearch.uni-salzburg.at/home/) to detect signature characters for a selected query group in a reference alignment and alternative alignments comprising identical sequences. Secondly, consensus signature characters congruently detected in all alignments are identified.
 
-For more details and an example application, please read our manuscript: [Ganser M.H., Santoferrara L.F., and Agatha S. Molecular signature characters complement taxonomic diagnoses: a bioinformatic approach exemplified by ciliated protists (Ciliophora, Oligotrichea). Molecular Phylogenetics and Evolution (in press), 2022](https://doi.org/10.1016/j.ympev.2022.107433) 
+For more details and an example application, please read our manuscript: Ganser M.H., Santoferrara L.F., and Agatha S. (2022). Molecular signature characters complement taxonomic diagnoses: a bioinformatic approach exemplified by ciliated protists (Ciliophora, Oligotrichea) @ [Molecular Phylogenetics and Evolution (in press)](https://doi.org/10.1016/j.ympev.2022.107433) 
 
 ## Usage
 ### Requirements
